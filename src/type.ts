@@ -27,6 +27,7 @@ export type Client = {
   baseUrl: string;
   apiKey: string;
   headers?: Record<string, string>;
+  geolocation?: GeolocationInput;
   fetch?: FetchLike;
 };
 
@@ -34,6 +35,7 @@ export type MovieGluClientConfig = {
   apiKey: string;
   baseUrl?: string;
   headers?: Record<string, string>;
+  geolocation?: GeolocationInput;
   fetch?: FetchLike;
 };
 
@@ -48,6 +50,13 @@ export type ListParams = {
   limit: number;
 };
 
+export type GeolocationInput = string | UserLocation;
+
+export type CinemasNearbyParams = ListParams;
+
+export type CinemasNearbyRequestOptions = Pick<RequestOptions, 'headers'>;
+export type CinemaDetailsRequestOptions = Pick<RequestOptions, 'headers'>;
+
 export type MovieGluSdk = {
   films: {
     nowShowing(params: ListParams): Promise<FilmsNowShowing>;
@@ -55,8 +64,8 @@ export type MovieGluSdk = {
     details(id: number): Promise<FilmDetailsResponse>;
   };
   cinemas: {
-    nearby(params: ListParams): Promise<CinemasNearbyResponse>;
-    details(id: number): Promise<CinemaDetailsResponse>;
+    nearby(params: CinemasNearbyParams, options?: CinemasNearbyRequestOptions): Promise<CinemasNearbyResponse>;
+    details(id: number, options?: CinemaDetailsRequestOptions): Promise<CinemaDetailsResponse>;
     showTimes(params: CinemaShowTimesParams): Promise<CinemaShowTimesResponse>;
   };
 };

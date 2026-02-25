@@ -1,12 +1,16 @@
 import { httpRequest } from './http';
 import type {
+  CinemaDetailsRequestOptions,
   CinemaShowTimesParams,
   CinemaShowTimesResponse,
   CinemaDetailsResponse,
+  CinemasNearbyParams,
+  CinemasNearbyRequestOptions,
   CinemasNearbyResponse,
   FilmDetailsResponse,
   FilmsComingSoonResponse,
   FilmsNowShowing,
+  GeolocationInput,
   ListParams,
   MovieGluClientConfig,
   MovieGluSdk,
@@ -52,10 +56,33 @@ function assertPositiveInteger(value: number, name: string): void {
   }
 }
 
+function assertFiniteNumber(value: number, name: string): void {
+  if (!Number.isFinite(value)) {
+    throw new TypeError(`${name} must be a finite number`);
+  }
+}
+
 function assertDateString(value: string, name: string): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new TypeError(`${name} must be in YYYY-MM-DD format`);
   }
+}
+
+function formatGeolocationHeader(geolocation: GeolocationInput): string {
+  if (typeof geolocation === 'string') {
+    const value = geolocation.trim();
+    if (!value) {
+      throw new TypeError('geolocation header must not be empty');
+    }
+
+    return value;
+  }
+
+  assertFiniteNumber(geolocation.lat, 'geolocation.lat');
+  assertFiniteNumber(geolocation.lng, 'geolocation.lng');
+
+  // MovieGlu accepts geolocation in "lat;lng" format.
+  return `${geolocation.lat};${geolocation.lng}`;
 }
 
 function toListQuery(params: ListParams): { n: number } {
@@ -119,6 +146,7 @@ export function createMovieGluClient(config: MovieGluClientConfig): MovieGluSdk 
     baseUrl: normalizeBaseUrl(config.baseUrl ?? DEFAULT_BASE_URL),
     apiKey: config.apiKey,
     headers: config.headers,
+    geolocation: config.geolocation,
     fetch: config.fetch,
   };
 
@@ -142,15 +170,33 @@ export function createMovieGluClient(config: MovieGluClientConfig): MovieGluSdk 
       },
     },
     cinemas: {
-      nearby(params: ListParams): Promise<CinemasNearbyResponse> {
+      nearby(params: CinemasNearbyParams, options?: CinemasNearbyRequestOptions): Promise<CinemasNearbyResponse> {
+        const geolocationHeader = options?.headers?.geolocation;
+        const geolocation = geolocationHeader ?? client.geolocation;
+        if (!geolocation) {
+          throw new TypeError(
+            'geolocation header is required for cinemas.nearby. Pass nearby(..., { headers: { geolocation } }) or createMovieGluClient({ geolocation }).',
+          );
+        }
+
         return httpRequest<CinemasNearbyResponse>(client, ENDPOINT_PATH.CINEMA_NEARBY, {
           queryParams: toListQuery(params),
+          headers: {
+            ...options?.headers,
+            geolocation: formatGeolocationHeader(geolocation),
+          },
         });
       },
-      details(id: number): Promise<CinemaDetailsResponse> {
+      details(id: number, options?: CinemaDetailsRequestOptions): Promise<CinemaDetailsResponse> {
         assertPositiveInteger(id, 'id');
+        const geolocationHeader = options?.headers?.geolocation;
+
         return httpRequest<CinemaDetailsResponse>(client, ENDPOINT_PATH.CINEMA_DETAIL, {
           queryParams: { cinema_id: id },
+          headers: {
+            ...options?.headers,
+            ...(geolocationHeader ? { geolocation: formatGeolocationHeader(geolocationHeader) } : {}),
+          },
         });
       },
       showTimes(params: CinemaShowTimesParams): Promise<CinemaShowTimesResponse> {
