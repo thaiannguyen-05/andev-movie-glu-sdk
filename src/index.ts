@@ -173,17 +173,12 @@ export function createMovieGluClient(config: MovieGluClientConfig): MovieGluSdk 
       nearby(params: CinemasNearbyParams, options?: CinemasNearbyRequestOptions): Promise<CinemasNearbyResponse> {
         const geolocationHeader = options?.headers?.geolocation;
         const geolocation = geolocationHeader ?? client.geolocation;
-        if (!geolocation) {
-          throw new TypeError(
-            'geolocation header is required for cinemas.nearby. Pass nearby(..., { headers: { geolocation } }) or createMovieGluClient({ geolocation }).',
-          );
-        }
 
         return httpRequest<CinemasNearbyResponse>(client, ENDPOINT_PATH.CINEMA_NEARBY, {
           queryParams: toListQuery(params),
           headers: {
             ...options?.headers,
-            geolocation: formatGeolocationHeader(geolocation),
+            ...(geolocation ? { geolocation: formatGeolocationHeader(geolocation) } : {}),
           },
         });
       },
