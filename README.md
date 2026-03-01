@@ -16,7 +16,6 @@ npm i @andev2005/movie-glu-sdk
 
 ## Yêu cầu
 
-- Có `apiKey` của MovieGlu
 - Runtime có `fetch` (Node.js 18+) hoặc truyền `fetch` custom vào client
 
 ## Sử dụng nhanh
@@ -27,7 +26,8 @@ npm i @andev2005/movie-glu-sdk
 import { createMovieGluClient } from '@andev2005/movie-glu-sdk';
 
 const movieGlu = createMovieGluClient({
-  apiKey: process.env.MOVIE_GLU_API_KEY!,
+  // apiKey là optional, mặc định đã được gắn theo cấu hình ANDE/XX
+  // apiKey: process.env.MOVIE_GLU_API_KEY,
 });
 
 async function main() {
@@ -50,7 +50,6 @@ main().catch(console.error);
 import { createMovieGluClient } from '@andev2005/movie-glu-sdk';
 
 const client = createMovieGluClient({
-  apiKey: 'your-api-key',
   // Tuỳ chọn:
   // baseUrl: 'https://api-gate2.movieglu.com',
   // headers: { 'x-custom-header': 'value' },
@@ -63,14 +62,27 @@ const client = createMovieGluClient({
 ### `films`
 
 ```ts
-// Phim đang chiếu
+// Phim đang chiếu (limit optional, default 10)
 await client.films.nowShowing({ limit: 10 });
 
-// Phim sắp chiếu
+// Phim sắp chiếu (limit optional, default 10)
 await client.films.comingSoon({ limit: 10 });
 
 // Chi tiết phim
 await client.films.details(12345);
+
+// Chi tiết phim + size_category
+await client.films.details({
+  filmId: 12345,
+  sizeCategory: ['small', 'medium'],
+});
+
+// Lịch chiếu theo phim + ngày
+await client.films.showTimes({
+  filmId: 12345,
+  date: '2026-02-25',
+  limit: 10,
+});
 ```
 
 ### `cinemas`
@@ -106,6 +118,16 @@ await client.cinemas.showTimes({
 
 SDK sẽ throw `MovieGluError` nếu request thất bại (HTTP status không thành công).
 
+Mỗi request tự động gửi các header mặc định:
+
+- `client: ANDE`
+- `x-api-key: Bcg2m9aHOI8QSg5h8EDNK8ecPZRTiove3dsbZVuz`
+- `authorization: Basic QU5ERV9YWDpWMEhoUjYzSHZOalM=`
+- `territory: XX`
+- `api-version: v201`
+- `geolocation: -22.0;14.0`
+- `device-datetime: <ISO datetime hiện tại>`
+
 ```ts
 import { MovieGluError } from '@andev2005/movie-glu-sdk';
 
@@ -127,9 +149,10 @@ try {
 
 SDK có kiểm tra đầu vào và sẽ throw `TypeError` nếu:
 
-- `apiKey` bị thiếu/rỗng
+- `apiKey` rỗng (nếu bạn truyền vào)
 - `limit` không phải số nguyên dương
-- `id`, `cinemaId`, `filmId` không phải số nguyên dương
+- `id/filmId/cinemaId` không phải số nguyên dương
+- `sizeCategory` không thuộc `small|medium|large|xlarge|xxlarge`
 - `date` không đúng định dạng `YYYY-MM-DD`
 
 ## Utility build URL (tuỳ chọn)
@@ -148,7 +171,8 @@ Các helper có sẵn:
 - `MOVIE_GLU.FILM_NOWSHOWING(limit)`
 - `MOVIE_GLU.CINEMA_NEARBY(limit)`
 - `MOVIE_GLU.FILMS_COMING_SOON(limit)`
-- `MOVIE_GLU.FILMS_DETAIL(id)`
+- `MOVIE_GLU.FILM_SHOWTIME({ filmId, date, limit? })`
+- `MOVIE_GLU.FILMS_DETAIL(idOrParams)`
 - `MOVIE_GLU.CINEMA_DETAIL(id)`
 - `MOVIE_GLU.CINEMA_SHOWTIME({ cinemaId, date, filmId?, sort? })`
 

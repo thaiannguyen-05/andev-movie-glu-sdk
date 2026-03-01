@@ -7,7 +7,10 @@ import type {
   CinemasNearbyParams,
   CinemasNearbyRequestOptions,
   CinemasNearbyResponse,
+  FilmDetailsParams,
   FilmDetailsResponse,
+  FilmShowTimesParams,
+  FilmShowTimesResponse,
   FilmsComingSoonResponse,
   FilmsNowShowing,
   GeolocationInput,
@@ -22,12 +25,17 @@ export const DEFAULT_BASE_URL = 'https://api-gate2.movieglu.com';
 
 const ENDPOINT_PATH = {
   FILM_NOWSHOWING: '/filmsNowShowing',
+  FILM_SHOWTIME: '/filmShowTimes',
   CINEMA_NEARBY: '/cinemasNearby',
   FILMS_COMING_SOON: '/filmsComingSoon',
   FILMS_DETAIL: '/filmDetails/',
   CINEMA_DETAIL: '/cinemaDetails/',
   CINEMA_SHOWTIME: '/cinemaShowTimes/',
 } as const;
+
+const DEFAULT_API_KEY = 'Bcg2m9aHOI8QSg5h8EDNK8ecPZRTiove3dsbZVuz';
+const DEFAULT_LIST_LIMIT = 10;
+const VALID_IMAGE_SIZE_CATEGORIES = new Set(['small', 'medium', 'large', 'xlarge', 'xxlarge']);
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -86,8 +94,9 @@ function formatGeolocationHeader(geolocation: GeolocationInput): string {
 }
 
 function toListQuery(params: ListParams): { n: number } {
-  assertPositiveInteger(params.limit, 'limit');
-  return { n: params.limit };
+  const limit = params.limit ?? DEFAULT_LIST_LIMIT;
+  assertPositiveInteger(limit, 'limit');
+  return { n: limit };
 }
 
 function toCinemaShowTimesQuery(params: CinemaShowTimesParams): {
@@ -111,6 +120,48 @@ function toCinemaShowTimesQuery(params: CinemaShowTimesParams): {
   };
 }
 
+function toFilmShowTimesQuery(params: FilmShowTimesParams): { date: string; film_id: number; n?: number } {
+  assertDateString(params.date, 'date');
+  assertPositiveInteger(params.filmId, 'filmId');
+
+  if (params.limit !== undefined) {
+    assertPositiveInteger(params.limit, 'limit');
+  }
+
+  return {
+    date: params.date,
+    film_id: params.filmId,
+    n: params.limit,
+  };
+}
+
+function normalizeFilmDetailsInput(input: number | FilmDetailsParams): { film_id: number; size_category?: string } {
+  const details = typeof input === 'number' ? { filmId: input } : input;
+  assertPositiveInteger(details.filmId, 'filmId');
+
+  if (!details.sizeCategory) {
+    return { film_id: details.filmId };
+  }
+
+  const sizeCategoryRaw = Array.isArray(details.sizeCategory)
+    ? details.sizeCategory.join(',')
+    : details.sizeCategory;
+
+  const normalizedValues = sizeCategoryRaw
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (normalizedValues.length === 0 || normalizedValues.some((value) => !VALID_IMAGE_SIZE_CATEGORIES.has(value))) {
+    throw new TypeError('sizeCategory must be one or more of: small, medium, large, xlarge, xxlarge');
+  }
+
+  return {
+    film_id: details.filmId,
+    size_category: normalizedValues.join(','),
+  };
+}
+
 export const MOVIE_GLU = {
   FILM_NOWSHOWING(limit: number): string {
     assertPositiveInteger(limit, 'limit');
@@ -124,9 +175,11 @@ export const MOVIE_GLU = {
     assertPositiveInteger(limit, 'limit');
     return buildUrl(ENDPOINT_PATH.FILMS_COMING_SOON, { n: limit });
   },
-  FILMS_DETAIL(id: number): string {
-    assertPositiveInteger(id, 'id');
-    return buildUrl(ENDPOINT_PATH.FILMS_DETAIL, { film_id: id });
+  FILM_SHOWTIME(params: FilmShowTimesParams): string {
+    return buildUrl(ENDPOINT_PATH.FILM_SHOWTIME, toFilmShowTimesQuery(params));
+  },
+  FILMS_DETAIL(idOrParams: number | FilmDetailsParams): string {
+    return buildUrl(ENDPOINT_PATH.FILMS_DETAIL, normalizeFilmDetailsInput(idOrParams));
   },
   CINEMA_DETAIL(id: number): string {
     assertPositiveInteger(id, 'id');
@@ -138,13 +191,14 @@ export const MOVIE_GLU = {
 };
 
 export function createMovieGluClient(config: MovieGluClientConfig): MovieGluSdk {
-  if (typeof config.apiKey !== 'string' || !config.apiKey.trim()) {
-    throw new TypeError('apiKey is required');
+  const resolvedApiKey = (config.apiKey ?? DEFAULT_API_KEY).trim();
+  if (!resolvedApiKey) {
+    throw new TypeError('apiKey must not be empty');
   }
 
   const client = {
     baseUrl: normalizeBaseUrl(config.baseUrl ?? DEFAULT_BASE_URL),
-    apiKey: config.apiKey,
+    apiKey: resolvedApiKey,
     headers: config.headers,
     geolocation: config.geolocation,
     fetch: config.fetch,
@@ -162,10 +216,14 @@ export function createMovieGluClient(config: MovieGluClientConfig): MovieGluSdk 
           queryParams: toListQuery(params),
         });
       },
-      details(id: number): Promise<FilmDetailsResponse> {
-        assertPositiveInteger(id, 'id');
+      details(idOrParams: number | FilmDetailsParams): Promise<FilmDetailsResponse> {
         return httpRequest<FilmDetailsResponse>(client, ENDPOINT_PATH.FILMS_DETAIL, {
-          queryParams: { film_id: id },
+          queryParams: normalizeFilmDetailsInput(idOrParams),
+        });
+      },
+      showTimes(params: FilmShowTimesParams): Promise<FilmShowTimesResponse> {
+        return httpRequest<FilmShowTimesResponse>(client, ENDPOINT_PATH.FILM_SHOWTIME, {
+          queryParams: toFilmShowTimesQuery(params),
         });
       },
     },

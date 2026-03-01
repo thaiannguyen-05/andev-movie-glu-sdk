@@ -82,7 +82,13 @@ export async function httpRequest<T>(
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    client: 'ANDE',
     'x-api-key': client.apiKey,
+    authorization: 'Basic QU5ERV9YWDpWMEhoUjYzSHZOalM=',
+    territory: 'XX',
+    'api-version': 'v201',
+    geolocation: '-22.0;14.0',
+    'device-datetime': new Date().toISOString(),
     ...client.headers,
     ...options.headers,
   };

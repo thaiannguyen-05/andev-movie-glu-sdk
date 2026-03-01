@@ -32,7 +32,7 @@ export type Client = {
 };
 
 export type MovieGluClientConfig = {
-  apiKey: string;
+  apiKey?: string;
   baseUrl?: string;
   headers?: Record<string, string>;
   geolocation?: GeolocationInput;
@@ -46,8 +46,29 @@ export type CinemaShowTimesParams = {
   sort?: SortType;
 };
 
+export const IMAGE_SIZE_CATEGORY = {
+  SMALL: 'small',
+  MEDIUM: 'medium',
+  LARGE: 'large',
+  XLARGE: 'xlarge',
+  XXLARGE: 'xxlarge',
+} as const;
+
+export type ImageSizeCategory = (typeof IMAGE_SIZE_CATEGORY)[keyof typeof IMAGE_SIZE_CATEGORY];
+
+export type FilmDetailsParams = {
+  filmId: number;
+  sizeCategory?: ImageSizeCategory | ImageSizeCategory[];
+};
+
+export type FilmShowTimesParams = {
+  date: string;
+  filmId: number;
+  limit?: number;
+};
+
 export type ListParams = {
-  limit: number;
+  limit?: number;
 };
 
 export type GeolocationInput = string | UserLocation;
@@ -61,7 +82,8 @@ export type MovieGluSdk = {
   films: {
     nowShowing(params: ListParams): Promise<FilmsNowShowing>;
     comingSoon(params: ListParams): Promise<FilmsComingSoonResponse>;
-    details(id: number): Promise<FilmDetailsResponse>;
+    details(idOrParams: number | FilmDetailsParams): Promise<FilmDetailsResponse>;
+    showTimes(params: FilmShowTimesParams): Promise<FilmShowTimesResponse>;
   };
   cinemas: {
     nearby(params: CinemasNearbyParams, options?: CinemasNearbyRequestOptions): Promise<CinemasNearbyResponse>;
@@ -93,21 +115,21 @@ export type FilmsComingSoonResponse = {
 
 export type FilmDetailsResponse = {
   film_id: number;
-  imdb_id: number;
-  imdb_title_id: string;
+  imdb_id?: number;
+  imdb_title_id?: string;
   film_name: string;
-  other_titles: OtherTitles;
-  version_type: string;
+  other_titles?: OtherTitles;
+  version_type?: string;
   images: FilmImages;
   synopsis_long: string;
-  distributor_id: number;
-  distributor: string;
+  distributor_id?: number;
+  distributor?: string;
   release_dates: ReleaseDate[];
   age_rating: AgeRating[];
-  duration_mins: number;
-  review_stars: number;
-  review_txt: string;
-  trailers: Trailer[] | null;
+  duration_mins?: number;
+  review_stars?: number;
+  review_txt?: string;
+  trailers: Trailers | null;
   genres: Genre[];
   cast: Cast[];
   directors: Director[];
@@ -122,19 +144,19 @@ export type CinemaDetailsResponse = {
   cinema_id: number;
   cinema_name: string;
   address: string;
-  address2: string;
+  address2?: string;
   city: string;
-  state: string;
-  county: string;
-  country: string;
+  state?: string;
+  county?: string;
+  country?: string;
   postcode: string;
-  phone: string;
+  phone?: string;
   lat: number;
   lng: number;
-  distance: number;
-  ticketing: number;
-  directions: string;
-  logo_url: string;
+  distance?: number;
+  ticketing?: number;
+  directions?: string;
+  logo_url?: string;
   show_dates: ShowDate[];
   status: Status;
 };
@@ -169,13 +191,13 @@ export type OtherTitles = Record<string, string>;
 
 export type ReleaseDate = {
   release_date: string;
-  notes: string;
+  notes?: string;
 };
 
 export type AgeRating = {
   rating: string;
-  age_rating_image: string;
-  age_advisory: string;
+  age_rating_image?: string;
+  age_advisory?: string;
 };
 
 export type FilmImageSize = {
@@ -196,8 +218,8 @@ export type Still = {
 };
 
 export type FilmImages = {
-  poster: KeyNumberObject<Poster>;
-  still: KeyNumberObject<Still>;
+  poster?: KeyNumberObject<Poster>;
+  still?: KeyNumberObject<Still>;
 };
 
 export type ShowDate = {
@@ -208,10 +230,10 @@ export type Cinema = {
   cinema_id: number;
   cinema_name: string;
   address: string;
-  address2: string;
+  address2?: string;
   city: string;
-  state: string;
-  county: string;
+  state?: string;
+  county?: string;
   country?: string;
   postcode: string;
   phone?: string;
@@ -225,8 +247,8 @@ export type Cinema = {
 
 export type Film = {
   film_id: number;
-  imdb_id: number;
-  imdb_title_id: string;
+  imdb_id?: number;
+  imdb_title_id?: string;
   film_name: string;
   other_titles?: OtherTitles;
   release_dates: ReleaseDate[];
@@ -238,10 +260,10 @@ export type Film = {
 
 export type FilmComingSoon = {
   film_id: number;
-  imdb_id: number;
-  imdb_title_id: string;
+  imdb_id?: number;
+  imdb_title_id?: string;
   film_name: string;
-  other_titles: OtherTitles;
+  other_titles?: OtherTitles;
   release_dates: ReleaseDate[];
   age_rating: AgeRating[];
   film_trailer: string | null;
@@ -280,11 +302,16 @@ export type AlternateVersion = {
   version_type: string;
 };
 
-export type Trailer = {
-  trailer_url?: string;
+export type TrailerItem = {
+  film_trailer: string;
   trailer_image?: string;
-  trailer_type?: string;
-  [key: string]: string | number | boolean | null | undefined;
+  version?: number;
+  quality?: string;
+  region?: string;
+};
+
+export type Trailers = {
+  [quality: string]: TrailerItem[];
 };
 
 export type ShowtimeTime = {
@@ -307,10 +334,10 @@ export type CinemaShowTimesCinema = {
 
 export type CinemaShowTimesFilm = {
   film_id: number;
-  imdb_id: number;
-  imdb_title_id: string;
+  imdb_id?: number;
+  imdb_title_id?: string;
   film_name: string;
-  other_titles: OtherTitles;
+  other_titles?: OtherTitles;
   version_type: string;
   age_rating: AgeRating[];
   film_image: string;
@@ -322,10 +349,10 @@ export type CinemaShowTimesFilm = {
 
 export type FilmShowTimesFilm = {
   film_id: number;
-  imdb_id: number;
-  imdb_title_id: string;
+  imdb_id?: number;
+  imdb_title_id?: string;
   film_name: string;
-  other_titles: OtherTitles;
+  other_titles?: OtherTitles;
   version_type: string;
   age_rating: AgeRating[];
   film_image: string;
